@@ -1,11 +1,86 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Transaction, Category } from "@/types/database";
-import { Plus, Pencil, Trash2, Search, ChevronDown, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, Check, AlertTriangle, X } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { TransactionModal } from "@/components/transaction-modal";
 
 let _txCache: { transactions: Transaction[]; categories: Category[] } | null = null;
+
+/* ── Confirmation Modal ── */
+function ConfirmDeleteModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  transaction,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  transaction: Transaction | null;
+}) {
+  if (!isOpen || !transaction) return null;
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+
+  return (
+    <div className="fixed inset-0 bg-foreground/80 flex items-center justify-center p-4 z-50 font-sans">
+      <div className="bg-white rounded-xl w-full max-w-md overflow-hidden relative">
+        <div className="p-6 md:p-8">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 text-gray-500 hover:text-foreground hover:scale-110 transition-all bg-muted p-2 rounded-full cursor-pointer"
+          >
+            <X size={20} />
+          </button>
+
+          <div className="flex items-center gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                Delete Transaction?
+              </h2>
+              <p className="text-gray-500 font-medium text-sm">
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-muted p-4 rounded-lg mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-foreground">
+                  {transaction.description || "Transaction"}
+                </p>
+                <p className="text-sm text-gray-500 font-medium">
+                  {transaction.category?.name || "Uncategorized"} • {new Date(transaction.date).toLocaleDateString()}
+                </p>
+              </div>
+              <div className={`font-bold text-lg ${transaction.type === "income" ? "text-secondary" : "text-foreground"}`}>
+                {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 bg-muted text-foreground h-12 rounded-md font-semibold hover:bg-gray-300 transition-colors duration-150 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 bg-destructive text-white h-12 rounded-md font-semibold hover:bg-red-700 transition-colors duration-150 cursor-pointer"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Custom dropdown ── */
 interface SelectOption { label: string; value: string }
@@ -97,6 +172,10 @@ export default function Transactions() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  
+  // Delete confirmation state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
   const fetchTransactions = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -133,9 +212,16 @@ export default function Transactions() {
     initData();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this transaction?")) return;
-    await supabase.from("transactions").delete().eq("id", id);
+  const handleDeleteClick = (tx: Transaction) => {
+    setTransactionToDelete(tx);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!transactionToDelete) return;
+    await supabase.from("transactions").delete().eq("id", transactionToDelete.id);
+    setIsDeleteModalOpen(false);
+    setTransactionToDelete(null);
     fetchTransactions();
   };
 
@@ -261,7 +347,7 @@ export default function Transactions() {
                       <Pencil size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(t.id)}
+                      onClick={() => handleDeleteClick(t)}
                       className="w-10 h-10 rounded-md bg-white flex items-center justify-center text-gray-600 hover:text-destructive hover:scale-105 transition-all cursor-pointer"
                     >
                       <Trash2 size={18} />
@@ -291,6 +377,17 @@ export default function Transactions() {
           onSave={fetchTransactions}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setTransactionToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        transaction={transactionToDelete}
+      />
     </div>
   );
 }

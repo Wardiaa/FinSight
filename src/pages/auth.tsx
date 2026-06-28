@@ -150,7 +150,7 @@ export default function Auth() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-muted text-foreground p-4 rounded-md outline-none focus:bg-white focus:border-2 focus:border-primary transition-all duration-200"
+              className="w-full bg-muted text-foreground p-4 rounded-md outline-none border-2 border-transparent focus:bg-white focus:border-primary transition-all duration-150 font-medium"
               placeholder="you@example.com"
               required
             />
@@ -162,7 +162,7 @@ export default function Auth() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-muted text-foreground p-4 rounded-md outline-none focus:bg-white focus:border-2 focus:border-primary transition-all duration-200"
+              className="w-full bg-muted text-foreground p-4 rounded-md outline-none border-2 border-transparent focus:bg-white focus:border-primary transition-all duration-150 font-medium"
               placeholder="••••••••"
               required
               minLength={6}
