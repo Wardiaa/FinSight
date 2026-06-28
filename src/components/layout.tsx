@@ -17,7 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="flex h-screen w-full bg-white overflow-hidden font-sans">
       {/* Mobile Topbar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-foreground text-white flex items-center justify-between px-4 z-50">
-        <span className="font-bold text-xl tracking-tight">Fincal</span>
+        <span className="font-bold text-xl tracking-tight">FinSight</span>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -47,7 +47,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col w-64 bg-foreground h-full border-r border-gray-800 shrink-0">
         <div className="h-24 flex items-center px-6">
-          <span className="font-bold text-3xl text-white tracking-tight">Fincal</span>
+          <span className="font-bold text-3xl text-white tracking-tight">FinSight</span>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2">
           {links.map((link) => (
