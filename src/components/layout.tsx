@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, List, LogOut, Menu, X } from "lucide-react";
+import { Home, List, LogOut, Menu, X, PieChart, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -11,6 +11,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const links = [
     { href: "/", label: "Dashboard", icon: Home },
     { href: "/transactions", label: "Transactions", icon: List },
+    { href: "/budgets", label: "Budgets", icon: PieChart },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -28,7 +30,14 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="md:hidden fixed inset-0 top-16 bg-foreground z-40 flex flex-col p-4">
           <nav className="flex-1 space-y-2">
             {links.map((link) => (
-              <Link key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)} className={`flex items-center gap-3 px-4 py-4 rounded-md transition-all ${location === link.href ? "bg-primary text-white font-semibold" : "text-gray-300 hover:bg-gray-800"}`}>
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-4 rounded-md transition-all ${
+                  location === link.href ? "bg-primary text-white font-semibold" : "text-gray-300 hover:bg-gray-800"
+                }`}
+              >
                 <link.icon size={24} />
                 <span className="text-lg">{link.label}</span>
               </Link>
@@ -36,7 +45,10 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
           <div className="mt-auto pt-4 border-t border-gray-800">
             <div className="px-4 py-3 text-gray-400 text-sm truncate">{user?.email}</div>
-            <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-4 text-gray-300 hover:text-white transition-colors cursor-pointer">
+            <button
+              onClick={signOut}
+              className="w-full flex items-center gap-3 px-4 py-4 text-gray-300 hover:text-white transition-colors cursor-pointer"
+            >
               <LogOut size={24} />
               <span className="text-lg">Sign out</span>
             </button>
@@ -51,7 +63,13 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className={`flex items-center gap-3 px-4 py-4 rounded-md cursor-pointer transition-all ${location === link.href ? "bg-primary text-white font-medium" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`flex items-center gap-3 px-4 py-4 rounded-md cursor-pointer transition-all ${
+                location === link.href ? "bg-primary text-white font-medium" : "text-gray-400 hover:bg-gray-800 hover:text-white"
+              }`}
+            >
               <link.icon size={20} />
               <span>{link.label}</span>
             </Link>
@@ -59,7 +77,10 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
         <div className="p-4 border-t border-gray-800">
           <div className="px-4 py-2 text-gray-400 text-xs truncate mb-2">{user?.email}</div>
-          <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-all cursor-pointer">
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-all cursor-pointer"
+          >
             <LogOut size={20} />
             <span className="text-sm font-medium">Sign out</span>
           </button>

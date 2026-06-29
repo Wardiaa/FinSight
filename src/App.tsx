@@ -1,13 +1,15 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
-import { AuthProvider, useAuth } from "@/hooks/use-auth";
-import { Layout } from "@/components/layout";
-import Dashboard from "@/pages/dashboard";
-import Transactions from "@/pages/transactions";
-import Auth from "@/pages/auth";
+import { Switch, Route, Router as WouterRouter, Redirect } from 'wouter';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { AuthProvider, useAuth } from '@/hooks/use-auth';
+import { Layout } from '@/components/layout';
+import Auth from '@/pages/auth';
+import Dashboard from '@/pages/dashboard';
+import Transactions from '@/pages/transactions';
+import Budgets from '@/pages/budgets';
+import Settings from '@/pages/settings';
+import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
 
@@ -33,12 +35,10 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={Auth} />
-      <Route path="/">
-        <ProtectedRoute component={Dashboard} />
-      </Route>
-      <Route path="/transactions">
-        <ProtectedRoute component={Transactions} />
-      </Route>
+      <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/transactions" component={() => <ProtectedRoute component={Transactions} />} />
+      <Route path="/budgets" component={() => <ProtectedRoute component={Budgets} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
       <Route component={NotFound} />
     </Switch>
   );

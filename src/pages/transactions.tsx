@@ -1,11 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Transaction, Category } from "@/types/database";
-import { Plus, Pencil, Trash2, Search, ChevronDown, Check, AlertTriangle, X } from "lucide-react";
+import { exportToCSV } from "@/lib/csv-export";
+import { Plus, Pencil, Trash2, Search, ChevronDown, Check, X, Download, RefreshCw } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { TransactionModal } from "@/components/transaction-modal";
+import { useToast } from "@/hooks/use-toast";
 
-let _txCache: { transactions: Transaction[]; categories: Category[] } | null = null;
+// Cache at module level
+let _txCache: {
+  transactions: Transaction[];
+  categories: Category[];
+  baseCurrency: string;
+} | null = null;
 
 /* ── Confirmation Modal ── */
 function ConfirmDeleteModal({
@@ -21,8 +28,8 @@ function ConfirmDeleteModal({
 }) {
   if (!isOpen || !transaction) return null;
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+  const formatCurrency = (amount: number, cur: string) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(amount);
 
   return (
     <div className="fixed inset-0 bg-foreground/80 flex items-center justify-center p-4 z-50 font-sans">
@@ -53,11 +60,11 @@ function ConfirmDeleteModal({
                   {transaction.description || "Transaction"}
                 </p>
                 <p className="text-sm text-gray-500 font-medium">
-                  {transaction.category?.name || "Uncategorized"} • {new Date(transaction.date).toLocaleDateString()}
+                  {transaction.category?.name || "Uncategorized"} &bull; {new Date(transaction.date).toLocaleDateString()}
                 </p>
               </div>
               <div className={`font-bold text-lg ${transaction.type === "income" ? "text-secondary" : "text-foreground"}`}>
-                {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
+                {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount, transaction.currency || "USD")}
               </div>
             </div>
           </div>
@@ -162,67 +169,71 @@ function FilterSelect({
 
 /* ── Page ── */
 export default function Transactions() {
+  const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>(_txCache?.transactions ?? []);
   const [categories, setCategories] = useState<Category[]>(_txCache?.categories ?? []);
+  const [baseCurrency, setBaseCurrency] = useState(_txCache?.baseCurrency ?? "USD");
   const [loading, setLoading] = useState(!_txCache);
 
+  const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [currencyFilter, setCurrencyFilter] = useState<string>("all");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  
-  // Delete confirmation state
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from("transactions")
-      .select("*, category:categories(*)")
-      .eq("user_id", user.id)
-      .order("date", { ascending: false });
-    if (data) {
-      const txs = data as Transaction[];
-      setTransactions(txs);
-      if (_txCache) _txCache.transactions = txs;
+    if (!user) {
+      if (showLoading) setLoading(false);
+      return;
     }
+    
+    const [catRes, txRes, setRes] = await Promise.all([
+      supabase.from("categories").select("*").order("name"),
+      supabase.from("transactions").select("*, category:categories(*)").eq("user_id", user.id).order("date", { ascending: false }),
+      supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle()
+    ]);
+    
+    const cats = (catRes.data as Category[]) ?? [];
+    const txs = (txRes.data as Transaction[]) ?? [];
+    const userBaseCurrency = setRes.data?.base_currency || "USD";
+    
+    setCategories(cats);
+    setTransactions(txs);
+    setBaseCurrency(userBaseCurrency);
+    
+    // Update cache
+    _txCache = {
+      transactions: txs,
+      categories: cats,
+      baseCurrency: userBaseCurrency
+    };
+    
+    if (showLoading) setLoading(false);
   };
 
   useEffect(() => {
-    async function initData() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const catRes = await supabase.from("categories").select("*").order("name");
-      const cats = (catRes.data as Category[]) ?? [];
-      setCategories(cats);
-      const { data } = await supabase
-        .from("transactions")
-        .select("*, category:categories(*)")
-        .eq("user_id", user.id)
-        .order("date", { ascending: false });
-      const txs = (data as Transaction[]) ?? [];
-      setTransactions(txs);
-      _txCache = { transactions: txs, categories: cats };
-      setLoading(false);
-    }
-    initData();
+    fetchTransactions(!_txCache);
   }, []);
-
-  const handleDeleteClick = (tx: Transaction) => {
-    setTransactionToDelete(tx);
-    setIsDeleteModalOpen(true);
-  };
 
   const handleDeleteConfirm = async () => {
     if (!transactionToDelete) return;
-    await supabase.from("transactions").delete().eq("id", transactionToDelete.id);
-    setIsDeleteModalOpen(false);
-    setTransactionToDelete(null);
-    fetchTransactions();
+    try {
+      await supabase.from("transactions").delete().eq("id", transactionToDelete.id);
+      setIsDeleteModalOpen(false);
+      setTransactionToDelete(null);
+      fetchTransactions(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleEdit = (tx: Transaction) => {
@@ -230,8 +241,8 @@ export default function Transactions() {
     setIsModalOpen(true);
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+  const formatCurrency = (amount: number, cur: string) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(amount);
 
   const renderIcon = (iconName: string) => {
     // @ts-ignore
@@ -240,6 +251,7 @@ export default function Transactions() {
   };
 
   const months = Array.from(new Set(transactions.map(t => t.date.substring(0, 7)))).sort().reverse();
+  const availableCurrencies = Array.from(new Set(transactions.map(t => t.currency || "USD")));
 
   const typeOptions: SelectOption[] = [
     { value: "all", label: "All Types" },
@@ -261,25 +273,60 @@ export default function Transactions() {
     }),
   ];
 
-  const filteredTransactions = transactions.filter(t => {
-    if (typeFilter !== "all" && t.type !== typeFilter) return false;
-    if (categoryFilter !== "all" && t.category_id !== categoryFilter) return false;
-    if (monthFilter !== "all" && !t.date.startsWith(monthFilter)) return false;
-    return true;
-  });
+  const currencyOptions: SelectOption[] = [
+    { value: "all", label: "All Currencies" },
+    ...availableCurrencies.map(c => ({ value: c, label: c })),
+  ];
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      if (typeFilter !== "all" && t.type !== typeFilter) return false;
+      if (categoryFilter !== "all" && t.category_id !== categoryFilter) return false;
+      if (monthFilter !== "all" && !t.date.startsWith(monthFilter)) return false;
+      if (currencyFilter !== "all" && (t.currency || "USD") !== currencyFilter) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        const descMatch = t.description?.toLowerCase().includes(s);
+        const catMatch = t.category?.name.toLowerCase().includes(s);
+        if (!descMatch && !catMatch) return false;
+      }
+      return true;
+    });
+  }, [transactions, typeFilter, categoryFilter, monthFilter, currencyFilter, search]);
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 font-sans pb-24 md:pb-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold text-foreground tracking-tight">Transactions</h1>
-        <button
-          onClick={() => { setEditingTransaction(null); setIsModalOpen(true); }}
-          className="bg-primary text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-600 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer w-full md:w-auto"
-        >
-          <Plus size={20} />
-          <span>Add Transaction</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => exportToCSV(filteredTransactions)}
+            className="bg-muted text-foreground px-5 py-3 rounded-md font-semibold hover:bg-gray-200 transition-colors duration-200 flex items-center justify-center gap-2 cursor-pointer border"
+          >
+            <Download size={18} />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => { setEditingTransaction(null); setIsModalOpen(true); }}
+            className="bg-primary text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-600 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus size={20} />
+            <span>Add Transaction</span>
+          </button>
+        </div>
       </header>
+
+      {/* Search */}
+      <div className="relative">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search by description or category..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-white border-2 border-transparent focus:border-primary rounded-lg pl-11 pr-4 py-3 text-sm font-medium outline-none transition-all duration-150 shadow-sm"
+        />
+      </div>
 
       {/* Filters */}
       <section className="bg-white p-4 md:p-6 rounded-xl overflow-visible">
@@ -301,6 +348,12 @@ export default function Transactions() {
             value={monthFilter}
             onChange={setMonthFilter}
             options={monthOptions}
+          />
+          <FilterSelect
+            label="Currency"
+            value={currencyFilter}
+            onChange={setCurrencyFilter}
+            options={currencyOptions}
           />
         </div>
       </section>
@@ -325,10 +378,16 @@ export default function Transactions() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-foreground text-lg truncate">{t.description || "Transaction"}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs font-semibold px-2 py-1 rounded-sm bg-white text-gray-700 shrink-0">
                         {t.category?.name || "Uncategorized"}
                       </span>
+                      {t.is_recurring && (
+                        <span className="text-xs font-semibold px-2 py-1 rounded-sm bg-blue-50 text-primary shrink-0 flex items-center gap-1">
+                          <RefreshCw size={10} />
+                          {t.recurring_interval || "Recurring"}
+                        </span>
+                      )}
                       <span className="text-sm text-gray-500 font-medium shrink-0">
                         {new Date(t.date).toLocaleDateString()}
                       </span>
@@ -336,8 +395,13 @@ export default function Transactions() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between md:justify-end gap-6 md:gap-8 w-full md:w-auto shrink-0">
-                  <div className={`font-bold text-xl ${t.type === "income" ? "text-secondary" : "text-foreground"}`}>
-                    {t.type === "income" ? "+" : "-"}{formatCurrency(t.amount)}
+                  <div className="text-right">
+                    <div className={`font-bold text-xl ${t.type === "income" ? "text-secondary" : "text-foreground"}`}>
+                      {t.type === "income" ? "+" : "-"}{formatCurrency(t.amount, t.currency || "USD")}
+                    </div>
+                    {(t.currency || "USD") !== baseCurrency && (
+                      <div className="text-xs text-gray-400 font-medium mt-0.5">{t.currency || "USD"}</div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -347,7 +411,7 @@ export default function Transactions() {
                       <Pencil size={18} />
                     </button>
                     <button
-                      onClick={() => handleDeleteClick(t)}
+                      onClick={() => { setTransactionToDelete(t); setIsDeleteModalOpen(true); }}
                       className="w-10 h-10 rounded-md bg-white flex items-center justify-center text-gray-600 hover:text-destructive hover:scale-105 transition-all cursor-pointer"
                     >
                       <Trash2 size={18} />
@@ -374,11 +438,11 @@ export default function Transactions() {
           onClose={() => setIsModalOpen(false)}
           categories={categories}
           initialData={editingTransaction}
-          onSave={fetchTransactions}
+          onSave={() => fetchTransactions(false)}
+          defaultCurrency={baseCurrency}
         />
       )}
 
-      {/* Delete Confirmation Modal */}
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
