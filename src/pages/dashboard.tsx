@@ -53,7 +53,7 @@ export default function Dashboard() {
 
     const txs = (txRes.data as Transaction[]) ?? [];
     const cats = (catRes.data as Category[]) ?? [];
-    const userBaseCurrency = setRes.data?.base_currency || "USD";
+    const userBaseCurrency = (setRes.data as any)?.base_currency || "USD";
     const userBudgets = (budRes.data as Budget[]) ?? [];
 
     setTransactions(txs);

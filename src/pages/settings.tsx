@@ -17,8 +17,8 @@ export default function Settings() {
     async function loadSettings() {
       if (!user) return;
       const { data } = await supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle();
-      if (data?.base_currency) {
-        setBaseCurrency(data.base_currency);
+      if (data && (data as any).base_currency) {
+        setBaseCurrency((data as any).base_currency);
       }
       setLoading(false);
     }
@@ -31,14 +31,15 @@ export default function Settings() {
     setSaved(false);
     
     try {
-      const { error } = await supabase.from("user_settings").upsert({
-        user_id: user.id,
-        base_currency: baseCurrency,
-        updated_at: new Date().toISOString()
-      });
+      const { error } = await (supabase as any)
+        .from("user_settings")
+        .upsert({
+          user_id: user.id,
+          base_currency: baseCurrency,
+          updated_at: new Date().toISOString()
+        });
       if (error) throw error;
       
-      // Show success state
       setSaved(true);
       setTimeout(() => {
         setSaved(false);

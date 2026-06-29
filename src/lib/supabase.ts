@@ -10,4 +10,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Create a typed Supabase client
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+
+// Helper types for Supabase queries
+export type Tables = Database['public']['Tables'];
+export type TableRow<T extends keyof Tables> = Tables[T]['Row'];
+export type TableInsert<T extends keyof Tables> = Tables[T]['Insert'];
+export type TableUpdate<T extends keyof Tables> = Tables[T]['Update'];

@@ -204,7 +204,7 @@ export default function Transactions() {
     
     const cats = (catRes.data as Category[]) ?? [];
     const txs = (txRes.data as Transaction[]) ?? [];
-    const userBaseCurrency = setRes.data?.base_currency || "USD";
+    const userBaseCurrency = (setRes.data as any)?.base_currency || "USD";
     
     setCategories(cats);
     setTransactions(txs);

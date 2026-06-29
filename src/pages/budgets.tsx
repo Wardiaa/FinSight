@@ -136,7 +136,7 @@ export default function Budgets() {
         .maybeSingle()
     ]);
 
-    const userBaseCurrency = setRes.data?.base_currency || "USD";
+    const userBaseCurrency = (setRes.data as any)?.base_currency || "USD";
     const fetchedRates = await getRates(userBaseCurrency);
 
     const newBudgets = (budRes.data as Budget[]) ?? [];

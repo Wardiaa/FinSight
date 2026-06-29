@@ -157,10 +157,15 @@ export function TransactionModal({ isOpen, onClose, categories, initialData, onS
 
     try {
       if (initialData) {
-        const { error } = await supabase.from("transactions").update(payload).eq("id", initialData.id);
+        const { error } = await (supabase as any)
+          .from("transactions")
+          .update(payload)
+          .eq("id", initialData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("transactions").insert(payload);
+        const { error } = await (supabase as any)
+          .from("transactions")
+          .insert(payload);
         if (error) throw error;
       }
       onSave();

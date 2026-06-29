@@ -150,16 +150,18 @@ export function BudgetModal({
 
     try {
       if (isEditing && initialData) {
-        // Update existing budget
-        const { error } = await supabase
+        // Update existing budget - using the supabase object directly with any casting
+        const { error } = await (supabase as any)
           .from("budgets")
           .update(payload)
           .eq("id", initialData.id);
         
         if (error) throw error;
       } else {
-        // Create new budget
-        const { error } = await supabase.from("budgets").insert(payload);
+        // Create new budget - using the supabase object directly with any casting
+        const { error } = await (supabase as any)
+          .from("budgets")
+          .insert(payload);
         if (error) {
           if (error.code === '23505') throw new Error("A budget for this category already exists this month.");
           throw error;
@@ -214,7 +216,7 @@ export function BudgetModal({
                 onChange={setCategoryId}
                 options={categoryOptions}
                 placeholder="Select expense category"
-                disabled={isEditing} // Disable category change when editing
+                disabled={isEditing}
               />
               {isEditing && (
                 <p className="text-xs text-gray-400 mt-1">Category cannot be changed when editing</p>

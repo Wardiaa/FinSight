@@ -48,21 +48,39 @@ export interface Database {
         Row: Category;
         Insert: Omit<Category, 'id'>;
         Update: Partial<Omit<Category, 'id'>>;
+        Relationships: [];
       };
       transactions: {
         Row: Transaction;
         Insert: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'category'>;
         Update: Partial<Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'category'>>;
+        Relationships: [
+          {
+            foreignKeyName: "transactions_category_id_fkey";
+            columns: ["category_id"];
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       budgets: {
         Row: Budget;
         Insert: Omit<Budget, 'id' | 'category'>;
         Update: Partial<Omit<Budget, 'id' | 'category'>>;
+        Relationships: [
+          {
+            foreignKeyName: "budgets_category_id_fkey";
+            columns: ["category_id"];
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       user_settings: {
         Row: UserSettings;
         Insert: UserSettings;
         Update: Partial<UserSettings>;
+        Relationships: [];
       };
     };
     Views: {
@@ -72,6 +90,12 @@ export interface Database {
         expenses: number;
         net: number;
       };
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
     };
   };
 }
