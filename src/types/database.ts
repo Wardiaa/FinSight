@@ -40,3 +40,38 @@ export interface UserSettings {
   base_currency: string;
   updated_at: string;
 }
+
+export interface Database {
+  public: {
+    Tables: {
+      categories: {
+        Row: Category;
+        Insert: Omit<Category, 'id'>;
+        Update: Partial<Omit<Category, 'id'>>;
+      };
+      transactions: {
+        Row: Transaction;
+        Insert: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'category'>;
+        Update: Partial<Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'category'>>;
+      };
+      budgets: {
+        Row: Budget;
+        Insert: Omit<Budget, 'id' | 'category'>;
+        Update: Partial<Omit<Budget, 'id' | 'category'>>;
+      };
+      user_settings: {
+        Row: UserSettings;
+        Insert: UserSettings;
+        Update: Partial<UserSettings>;
+      };
+    };
+    Views: {
+      monthly_summary: {
+        month: string;
+        income: number;
+        expenses: number;
+        net: number;
+      };
+    };
+  };
+}
